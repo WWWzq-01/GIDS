@@ -50,7 +50,7 @@ def track_acc_GIDS(g, category, args, device, label_array=None, key_offset=None)
         wb_size = args.wb_size,
         accumulator_flag = args.accumulator,
         cache_dim = args.cache_dim,
-        #ssd_list=[5],
+        ssd_list=[0],
         heterograph = True,
         heterograph_map = key_offset
     )
@@ -184,10 +184,30 @@ def track_acc_GIDS(g, category, args, device, label_array=None, key_offset=None)
                 e2e_time = 0
                 
                 #Just testing 100 iterations remove the next line if you do not want to halt
-                return None
+                # return None
 
+    # Evaluation
 
-       
+    model.eval()
+    predictions = []
+    labels = []
+    with torch.no_grad():
+        for _, _, blocks in test_dataloader:
+            blocks = [block.to(device) for block in blocks]
+            inputs = blocks[0].srcdata['feat']
+     
+            if(args.data == 'IGB'):
+                labels.append(blocks[-1].dstdata['label']['paper'].cpu().numpy())
+            elif(args.data == 'OGB'):
+                labels.append(blocks[-1].dstdata['label']['paper'].cpu().numpy())
+
+            predict = model(blocks, inputs).argmax(1).cpu().numpy()
+            predictions.append(predict)
+
+        predictions = np.concatenate(predictions)
+        labels = np.concatenate(labels)
+        test_acc = sklearn.metrics.accuracy_score(labels, predictions)*100
+    print("Test Acc {:.2f}%".format(test_acc))      
   
 
 
@@ -290,6 +310,20 @@ if __name__ == '__main__':
                 }
         else:
             dataset = IGBHeteroDGLDataset(args)
+            if(args.dataset_size == 'small'):
+                # key_offset = {
+                #     'paper' :       1200000,
+                #     'author' :      2200000,
+                #     'fos' :         4126066,
+                #     'institute' :   4316515
+                # }
+                key_offset = {
+                    'paper' : 0,
+                    'author' : 1000000,
+                    'fos' : 1000000 + 1926066,
+                    'institute' : 1000000 + 1926066 + 190449
+                }
+                print("key_offset: ", key_offset)
         g = dataset[0]
         g = g.formats('csc')
     elif(args.data == "OGB"):

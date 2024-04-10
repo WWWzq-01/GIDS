@@ -105,7 +105,7 @@ if __name__ == '__main__':
     parser.add_argument('--device', type=int, default=0, 
         help='cuda device number')
     parser.add_argument('--data', type=str, default='IGB', 
-        choices=['IGB', 'OGB'], help='Dataset type')
+         help='Dataset type')
     parser.add_argument('--uva_graph', type=int, default=0,help='0:non-uva, 1:uva')
     parser.add_argument('--emb_size', type=int, default=1024)
     
@@ -144,8 +144,8 @@ if __name__ == '__main__':
             dataset = IGB260MDGLDataset(args)
             g = dataset[0]
             g  = g.formats('csc')
-        elif(args.data == "OGB"):
-            print("Dataset: OGB")
+        elif(args.data == "OGB" or args.data == "arxiv" or args.data == "products"):
+            print("Dataset: ",args.data)
             dataset = OGBDGLDataset(args)
             g = dataset[0]
         else:
@@ -161,8 +161,8 @@ if __name__ == '__main__':
         key_offset = {
                     'paper' : 0,
                     'author' : 1000000,
-                    'fos' : 1000000 + 192606,
-                    'institute' : 1000000 + 192606 + 190449
+                    'fos' : 1000000 + 1926066,
+                    'institute' : 1000000 + 1926066 + 190449
                 }
 
         pv = compute_pagerank_hetero(g, args.damp, args.K, key_offset) 

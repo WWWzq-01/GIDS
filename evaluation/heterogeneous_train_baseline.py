@@ -96,7 +96,7 @@ def track_acc_Baseline(g, category, args, device, label_array=None):
         lr=args.learning_rate)
     sched = optim.lr_scheduler.StepLR(optimizer, step_size=25, gamma=0.25)
 
-    warm_up_iter = 1000
+    warm_up_iter = 200
     # Setup is Done
     for epoch in tqdm.tqdm(range(args.epochs)):
         epoch_start = time.time()
@@ -116,7 +116,7 @@ def track_acc_Baseline(g, category, args, device, label_array=None):
                 print("step: ", step)
             if(step == warm_up_iter):
                 print("warp up done")
-                train_dataloader.print_timer()
+                # train_dataloader.print_timer()
                 batch_input_time = 0
                 transfer_time = 0
                 train_time = 0
@@ -149,7 +149,7 @@ def track_acc_Baseline(g, category, args, device, label_array=None):
             if(step == warm_up_iter + 100):
                 print("Performance for 100 iteration after 1000 iteration")
                 e2e_time += time.time() - e2e_time_start 
-                train_dataloader.print_timer()
+                # train_dataloader.print_timer()
                 print_times(transfer_time, train_time, e2e_time)
              
                 batch_input_time = 0
@@ -158,7 +158,7 @@ def track_acc_Baseline(g, category, args, device, label_array=None):
                 e2e_time = 0
                 
                 #Just testing 100 iterations remove the next line if you do not want to halt
-                return None
+                # return None
 
 
        
@@ -174,7 +174,7 @@ def track_acc_Baseline(g, category, args, device, label_array=None):
             inputs = blocks[0].srcdata['feat']
      
             if(args.data == 'IGB'):
-                labels.append(blocks[-1].dstdata['label'].cpu().numpy())
+                labels.append(blocks[-1].dstdata['label']['paper'].cpu().numpy())
             elif(args.data == 'OGB'):
                 out_label = torch.index_select(label_array, 0, b[1]).flatten()
                 labels.append(out_label.numpy())
@@ -185,7 +185,6 @@ def track_acc_Baseline(g, category, args, device, label_array=None):
         labels = np.concatenate(labels)
         test_acc = sklearn.metrics.accuracy_score(labels, predictions)*100
     print("Test Acc {:.2f}%".format(test_acc))
-
 
 
        
@@ -293,7 +292,7 @@ if __name__ == '__main__':
 
     # category = g.predict
     # print("g: ", g)
-
+    print("start training")
 
 
     track_acc_Baseline(g, category, args, device)

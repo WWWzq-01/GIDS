@@ -46,8 +46,8 @@ def track_acc_GIDS(g, args, device, label_array=None):
         window_buffer = args.window_buffer,
         wb_size = args.wb_size,
         accumulator_flag = args.accumulator,
-        cache_dim = args.cache_dim
-    
+        cache_dim = args.cache_dim,
+        ssd_list=[0]
     )
     dim = args.emb_size
 
@@ -178,7 +178,7 @@ def track_acc_GIDS(g, args, device, label_array=None):
                 e2e_time = 0
                 
                 #Just testing 100 iterations remove the next line if you do not want to halt
-                return None
+                # return None
 
 
        
@@ -195,7 +195,7 @@ def track_acc_GIDS(g, args, device, label_array=None):
      
             if(args.data == 'IGB'):
                 labels.append(blocks[-1].dstdata['label'].cpu().numpy())
-            elif(args.data == 'OGB'):
+            elif(args.data == 'OGB' or args.data == 'products' or args.data == 'arxiv'):
                 labels.append(blocks[-1].dstdata['label'].cpu().numpy())
                 # out_label = torch.index_select(label_array, 0, b[1]).flatten()
                 # labels.append(out_label.numpy())
@@ -219,7 +219,7 @@ if __name__ == '__main__':
         choices=['experimental', 'small', 'medium', 'large', 'full'], 
         help='size of the datasets')
     parser.add_argument('--num_classes', type=int, default=19, 
-        choices=[19, 2983, 172], help='number of classes')
+        choices=[19, 2983, 172,47,40], help='number of classes')
     parser.add_argument('--in_memory', type=int, default=0, 
         choices=[0, 1], help='0:read only mmap_mode=r, 1:load into memory')
     parser.add_argument('--synthetic', type=int, default=0,
@@ -294,8 +294,8 @@ if __name__ == '__main__':
         dataset = IGB260MDGLDataset(args)
         g = dataset[0]
         g  = g.formats('csc')
-    elif(args.data == "OGB"):
-        print("Dataset: OGB")
+    elif(args.data == "OGB" or args.data == "products" or args.data == "arxiv"):
+        print("Dataset: ",args.data)
         dataset = OGBDGLDataset(args)
         g = dataset[0]
         g  = g.formats('csc')

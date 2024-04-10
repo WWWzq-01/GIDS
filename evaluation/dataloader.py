@@ -42,7 +42,10 @@ class IGB260M(object):
     def num_nodes(self):
         if self.data == 'OGB':
             return 111059956
-
+        if self.data == 'products':
+            return 2449029
+        if self.data == 'arxiv':
+            return 169343
         if self.size == 'experimental':
             return 100000
         elif self.size == 'small':
@@ -58,7 +61,7 @@ class IGB260M(object):
     def paper_feat(self) -> np.ndarray:
         num_nodes = self.num_nodes()
         # TODO: temp for bafs. large and full special case
-        if self.data == 'OGB':
+        if self.data == 'OGB' or self.data == 'products' or self.data == 'arxiv':
             path = osp.join(self.dir, 'node_feat.npy')
             if self.in_memory:
                 emb = np.load(path)
@@ -86,11 +89,13 @@ class IGB260M(object):
 
     @property
     def paper_label(self) -> np.ndarray:
-        if(self.data == 'OGB'):
-            path = osp.join(self.dir, 'node_label.npy')
-            node_labels = np.load(path).flatten()
-            return node_labels
 
+        if(self.data == 'OGB' or self.data == 'products' or self.data == 'arxiv'):
+            path = osp.join(self.dir, 'node_label.npy')
+            if self.in_memory:
+                node_labels = np.load(path).flatten()
+            else:
+                node_labels = np.load(path, mmap_mode='r').flatten()
         elif self.size == 'large' or self.size == 'full':
             num_nodes = self.num_nodes()
             if self.num_classes == 19:
@@ -123,7 +128,7 @@ class IGB260M(object):
     @property
     def paper_edge(self) -> np.ndarray:
         path = osp.join(self.dir, self.size, 'processed', 'paper__cites__paper', 'edge_index.npy')
-        if self.data == 'OGB':
+        if self.data == 'OGB' or self.data == 'products' or self.data == 'arxiv':
             path = osp.join(self.dir, 'edge_index.npy')
         elif self.size == 'full':
             path = '/mnt/nvme16/IGB260M_part_2/full/processed/paper__cites__paper/edge_index.npy'
