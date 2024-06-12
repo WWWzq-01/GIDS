@@ -4,18 +4,22 @@ template <typename T = float>
 __global__ void read_feature_kernel(array_d_t<T> *dr, T *out_tensor_ptr,
                                     int64_t *index_ptr, int dim,
                                     int64_t num_idx, int cache_dim, uint64_t key_off) {
-
+  // 当前执行核函数的块的索引
   uint64_t bid = blockIdx.x;
+  // 计算块中包含的Warp数量。一个Warp包含32个线程，这是CUDA架构的一个基本单元。
   int num_warps = blockDim.x / 32;
+  // 当前线程属于哪个warp。
   int warp_id = threadIdx.x / 32;
+  // 当前线程的全局索引
   int idx_idx = bid * num_warps + warp_id;
   if (idx_idx < num_idx) {
  	    bam_ptr<T> ptr(dr);
 
         uint64_t row_index = index_ptr[idx_idx] + key_off;
+        // 当前线程在其warp中的具体索引
       	uint64_t tid = threadIdx.x % 32;
 
-
+    // dim = args.emb_size
     for (; tid < dim; tid += 32) {
 	    T temp = ptr[(row_index) * cache_dim + tid];
 	    out_tensor_ptr[(bid * num_warps + warp_id) * dim + tid] = temp;

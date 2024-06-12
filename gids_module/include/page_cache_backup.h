@@ -104,7 +104,7 @@ typedef struct __align__(32) {
 
 } __attribute__((aligned (32))) data_page_t;
 
-typedef data_page_t* pages_t;
+typedef data_page_t* pagespages_t_t;
 
 template<typename T>
 struct returned_cache_page_t {
@@ -790,6 +790,7 @@ struct page_cache_t {
         h_ranges_dists = new data_dist_t[max_range];
 
         uint64_t cache_size = ps*np;
+        // 至少向上对齐到64KB
         this->pages_dma = createDma(ctrl.ctrl, NVM_PAGE_ALIGN(cache_size, 1UL << 16), cudaDevice);
         pdt.base_addr = (uint8_t*) this->pages_dma.get()->vaddr;
         std::cout << "pages_dma: " << std::hex << this->pages_dma.get()->vaddr << "\t" << this->pages_dma.get()->ioaddrs[0] << std::endl;
@@ -2009,7 +2010,7 @@ struct array_t {
                                   << "\t#Hits: "    << rdt[i].hit_cnt 
                                   << "\tHit Rate:"  << ((float)rdt[i].hit_cnt/rdt[i].access_cnt) 
                                   << "\tCLSize:"    << rdt[i].page_size 
-                                  << std::endl;
+                                  << std::exndl;
             std::cout << "*********************************" << std::endl;
 //	    for (size_t j = 0; j < rdt[i].read_io_cnt; j++){
 //		std::cout << "evicted: " << rdt[i].evicted_p_array[j] << std::endl;
