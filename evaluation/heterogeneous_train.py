@@ -307,7 +307,7 @@ if __name__ == '__main__':
     #     num_t = g.num_nodes(t)
     #     print("type: ", t, " num: ", num_t)
 
-
+    # key_offset = None
     category = g.predict
     track_acc_GIDS(g, category, args, device, labels, key_offset)
     #track_acc(g, args, device, labels)
