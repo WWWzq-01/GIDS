@@ -132,6 +132,7 @@ def track_acc_GIDS(g, args, device, label_array=None):
 
         for step, (input_nodes, seeds, blocks, ret) in enumerate(train_dataloader):
             #print("step: ", step)
+            # train_dataloader.print_stats()
             if(step == warm_up_iter):
                 print("warp up done")
                 train_dataloader.print_stats()

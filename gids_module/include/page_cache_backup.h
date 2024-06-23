@@ -736,17 +736,22 @@ struct page_cache_t {
         pdt.n_pages_minus_1 = np - 1;
         pdt.n_ctrls = ctrls.size();
         d_ctrls_buff = createBuffer(pdt.n_ctrls * sizeof(Controller*), cudaDevice);
+        // d_ctrls对应设备的ctrls
         pdt.d_ctrls = (Controller**) d_ctrls_buff.get();
+        // ctrl.blk_size = ns.lab_data_size
         pdt.n_blocks_per_page = (ps/ctrl.blk_size);
+        // n_cachelines_for_stats实际上没用到
         pdt.n_cachelines_for_states = np/STATES_PER_CACHELINE;
         for (size_t k = 0; k < pdt.n_ctrls; k++)
+            // 将host上的ctrl指针复制到device上
             cuda_err_chk(cudaMemcpy(pdt.d_ctrls+k, &(ctrls[k]->d_ctrl_ptr), sizeof(Controller*), cudaMemcpyHostToDevice));
         //n_ctrls = ctrls.size();
         //d_ctrls_buff = createBuffer(n_ctrls * sizeof(Controller*), cudaDevice);
         //d_ctrls = (Controller**) d_ctrls_buff.get();
         //for (size_t k = 0; k < n_ctrls; k++)
         //    cuda_err_chk(cudaMemcpy(d_ctrls+k, &(ctrls[k]->d_ctrl_ptr), sizeof(Controller*), cudaMemcpyHostToDevice));
-
+        
+        // 一般来说max_range设为64就已足够
         pdt.range_cap = max_range;
         pdt.n_ranges = 0;
         pdt.n_ranges_bits = (max_range == 1) ? 1 : std::log2(max_range);
@@ -798,14 +803,17 @@ struct page_cache_t {
         const uint32_t uints_per_page = ctrl.ctrl->page_size / sizeof(uint64_t);
         if ((pdt.page_size > (ctrl.ctrl->page_size * uints_per_page)) || (np == 0) || (pdt.page_size < ctrl.ns.lba_data_size))
             throw error(string("page_cache_t: Can't have such page size or number of pages"));
+        // this->pages_dma.get()返回的是nvm_dma_t
         if (ps <= this->pages_dma.get()->page_size) {
             std::cout << "Cond1\n";
+            // 计算每个内存页中有多少个ps大小的页
             uint64_t how_many_in_one = ctrl.ctrl->page_size/ps;
             this->prp1_buf = createBuffer(np * sizeof(uint64_t), cudaDevice);
             pdt.prp1 = (uint64_t*) this->prp1_buf.get();
 
 
             std::cout << np << " " << sizeof(uint64_t) << " " << how_many_in_one << " " << this->pages_dma.get()->n_ioaddrs <<std::endl;
+            // how_many_in_one *  this->pages_dma.get()->n_ioaddrs 代表创建的dma缓冲区所能对应的pagecache的page数量
             uint64_t* temp = new uint64_t[how_many_in_one *  this->pages_dma.get()->n_ioaddrs];
             std::memset(temp, 0, how_many_in_one *  this->pages_dma.get()->n_ioaddrs);
             if (temp == NULL)
@@ -824,12 +832,13 @@ struct page_cache_t {
             //std::cout << "HERE2\n";
             pdt.prps = false;
         }
-
+        // 两个内存页对应一个page cache中的page
         else if ((ps > this->pages_dma.get()->page_size) && (ps <= (this->pages_dma.get()->page_size * 2))) {
             this->prp1_buf = createBuffer(np * sizeof(uint64_t), cudaDevice);
             pdt.prp1 = (uint64_t*) this->prp1_buf.get();
             this->prp2_buf = createBuffer(np * sizeof(uint64_t), cudaDevice);
             pdt.prp2 = (uint64_t*) this->prp2_buf.get();
+            //FIXME:怀疑这个数组的长度不对，应该是np，但是申请多了也不影响，先不管
             //uint64_t* temp1 = (uint64_t*) malloc(np * sizeof(uint64_t));
             uint64_t* temp1 = new uint64_t[np * sizeof(uint64_t)];
             std::memset(temp1, 0, np * sizeof(uint64_t));
@@ -848,18 +857,23 @@ struct page_cache_t {
             pdt.prps = true;
         }
         else {
+            // pages_dma设置的是ps*np
+            // prp_list_dma设置的是ctrl.ctrl->page_size  * np;
+            // 为什么需要prp_list_dma呢
             this->prp1_buf = createBuffer(np * sizeof(uint64_t), cudaDevice);
             pdt.prp1 = (uint64_t*) this->prp1_buf.get();
             uint32_t prp_list_size =  ctrl.ctrl->page_size  * np;
             this->prp_list_dma = createDma(ctrl.ctrl, NVM_PAGE_ALIGN(prp_list_size, 1UL << 16), cudaDevice);
             this->prp2_buf = createBuffer(np * sizeof(uint64_t), cudaDevice);
             pdt.prp2 = (uint64_t*) this->prp2_buf.get();
+            // temp1,2的长度应该是np，temp3的长度应该是（how_many_in_one-1）*np
             uint64_t* temp1 = new uint64_t[np * sizeof(uint64_t)];
             uint64_t* temp2 = new uint64_t[np * sizeof(uint64_t)];
             uint64_t* temp3 = new uint64_t[prp_list_size];
             std::memset(temp1, 0, np * sizeof(uint64_t));
             std::memset(temp2, 0, np * sizeof(uint64_t));
             std::memset(temp3, 0, prp_list_size);
+            // 计算每个pagecache的page需要多少个内存的page
             uint32_t how_many_in_one = ps /  ctrl.ctrl->page_size ;
             for (size_t i = 0; i < np; i++) {
                 temp1[i] = ((uint64_t) this->pages_dma.get()->ioaddrs[i*how_many_in_one]);
@@ -915,6 +929,7 @@ struct page_cache_t {
 template <typename T>
 struct range_d_t {
     uint64_t index_start;
+    // number of 64-bit elements in backing array
     uint64_t count;
     uint64_t range_id;
     uint64_t page_start_offset;
@@ -1246,8 +1261,9 @@ uint64_t range_d_t<T>::acquire_page(const size_t pg, const uint32_t count, const
     uint8_t prefetch_count = pages[index].prefetch_count.load(simt::memory_order_acquire);  
     uint32_t p_count = 0;
     if(prefetch_count != 0 && (prefetch_count >>7 == 0) ){
-	p_count = 1;
-	pages[index].prefetch_count.store(prefetch_count | 0x80, simt::memory_order_release);
+	    p_count = 1;
+        //   pages_t pages;
+	    pages[index].prefetch_count.store(prefetch_count | 0x80, simt::memory_order_release);
     }
 
 
@@ -1258,7 +1274,7 @@ uint64_t range_d_t<T>::acquire_page(const size_t pg, const uint32_t count, const
 //	    printf("acquire tid: %i idx: %i p: %u window_count:%lu\n", (int) threadIdx.x, (int)index,(unsigned) prefetch_count, (unsigned long) window_count);
     
     	    p_count = 1;
-	pages[index].prefetch_counter.store(window_count | 0x80, simt::memory_order_release);
+	        pages[index].prefetch_counter.store(window_count | 0x80, simt::memory_order_release);
     }
 
 //    printf("acquire tid: %i idx: %i p: %u window_count:%lu\n", (int) threadIdx.x, (int)index,(unsigned) prefetch_count, (unsigned long) window_count);
@@ -1289,16 +1305,16 @@ uint64_t range_d_t<T>::acquire_page(const size_t pg, const uint32_t count, const
                 //ctrl = ctrl_;
                 uint64_t b_page = get_backing_page(index);
                 
-		Controller* c = cache.d_ctrls[ctrl];
+		        Controller* c = cache.d_ctrls[ctrl];
                 c->access_counter.fetch_add(1, simt::memory_order_relaxed);
                 //uint32_t queue = (tid/32) % (c->n_qps);
                 //uint32_t queue = c->queue_counter.fetch_add(1, simt::memory_order_relaxed) % (c->n_qps);
                 //uint32_t queue = ((sm_id * 64) + warp_id()) % (c->n_qps);
                 //read_io_cnt.fetch_add(1, simt::memory_order_relaxed);
                 
-		read_data(&cache, (c->d_qps)+queue, ((b_page)*cache.n_blocks_per_page), cache.n_blocks_per_page, page_trans);
+		        read_data(&cache, (c->d_qps)+queue, ((b_page)*cache.n_blocks_per_page), cache.n_blocks_per_page, page_trans);
                 //page_addresses[index].store(page_trans, simt::memory_order_release);
-		pages[index].offset = page_trans;
+		        pages[index].offset = page_trans;
                 // while (cache.page_translation[global_page].load(simt::memory_order_acquire) != page_trans)
                 //     __nanosleep(100);
                 //miss_cnt.fetch_add(count, simt::memory_order_relaxed);
@@ -1487,7 +1503,7 @@ struct array_d_t {
         eq_mask = __match_any_sync(mask, gaddr);
         eq_mask &= __match_any_sync(mask, (uint64_t)this);
         master = __ffs(eq_mask) - 1;
-
+        // 确定在给定的线程掩码 eq_mask 中是否有任何线程的 write 表达式为真
         uint32_t dirty = __any_sync(eq_mask, write);
 
         uint64_t base;
@@ -2060,10 +2076,14 @@ cache_page_t* page_cache_d_t::get_cache_page(const uint32_t page) const {
 
 __forceinline__
 __device__
-uint32_t page_cache_d_t::find_slot(uint64_t address, uint64_t range_id, const uint32_t queue_, simt::atomic<uint64_t, simt::thread_scope_device>& access_cnt, uint64_t* evicted_p_array) {
+uint32_t page_cache_d_t::find_slot(uint64_t address, uint64_t range_id, const uint32_t queue_, simt::atomic<uint64_t, 
+                                    simt::thread_scope_device>& access_cnt, uint64_t* evicted_p_array) {
+    // evicted_p_array 暂时没有使用
     bool fail = true;
+    // FIXME: 这里的 count 可能是用于调试的，在当前版本实际上没有用到
     uint64_t count = 0;
     uint64_t global_address =(uint64_t) ((address << n_ranges_bits) | range_id); //not elegant. but hack
+    // return page:这个page变量就是返回的page_trans
     uint32_t page = 0;
     unsigned int ns = 8;
 	uint64_t j = 0;
